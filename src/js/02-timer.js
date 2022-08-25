@@ -1,30 +1,19 @@
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
-import { Notify } from 'notiflix/build/notiflix-notify-aio';
+import Notiflix from 'notiflix';
 
-const startBtn = document.querySelector('[data-start]');
-const daysRef = document.querySelector('[data-days]');
-const hoursRef = document.querySelector('[data-hours]');
-const minutesRef = document.querySelector('[data-minutes]');
-const secondsRef = document.querySelector('[data-seconds]');
-
-startBtn.setAttribute('disabled', true);
-
-function convertMs(ms) {
-  const second = 1000;
-  const minute = second * 60;
-  const hour = minute * 60;
-  const day = hour * 24;
-
-  const days = Math.floor(ms / day);
-  const hours = Math.floor((ms % day) / hour);
-  const minutes = Math.floor(((ms % day) % hour) / minute);
-  const seconds = Math.floor((((ms % day) % hour) % minute) / second);
-
-  return { days, hours, minutes, seconds };
+const text = document.querySelector('#datetime-picker');
+const body = document.querySelector('body');
+const startBtn = document.querySelector('button[data-start]');
+const refs = {
+  seconds: document.querySelector('span[data-seconds]'),
+  minutes: document.querySelector('span[data-minutes]'),
+  hours: document.querySelector('span[data-hours]'),
+  days: document.querySelector('span[data-days]'),
 }
 
-const addLeadingZero = value => String(value).padStart(2, 0);
+
+startBtn.disabled = true;
 
 const options = {
   enableTime: true,
@@ -33,45 +22,54 @@ const options = {
   minuteIncrement: 1,
   onClose(selectedDates) {
     if (selectedDates[0] < new Date()) {
-      Notify.failure('Please choose a date in the future');
-      return;
+      Notiflix.Notify.failure('Please choose a date in the future');
+      startBtn.disabled = true;
+    } else {
+      startBtn.disabled = false;
     }
-    startBtn.removeAttribute('disabled');
-
-    const showTimer = () => {
-      const now = new Date();
-      localStorage.setItem('selectedData', selectedDates[0]);
-      const selectData = new Date(localStorage.getItem('selectedData'));
-
-      if (!selectData) return;
-
-      const diff = selectData - now;
-      const { days, hours, minutes, seconds } = convertMs(diff);
-      daysRef.textContent = days;
-      hoursRef.textContent = addLeadingZero(hours);
-      minutesRef.textContent = addLeadingZero(minutes);
-      secondsRef.textContent = addLeadingZero(seconds);
-
-      if (
-        daysRef.textContent === '0' &&
-        hoursRef.textContent === '00' &&
-        minutesRef.textContent === '00' &&
-        secondsRef.textContent === '00'
-      ) {
-        clearInterval(timerId);
-      }
-    };
-
-    const onClick = () => {
-      if (timerId) {
-        clearInterval(timerId);
-      }
-      showTimer();
-      timerId = setInterval(showTimer, 1000);
-    };
-
-    startBtn.addEventListener('click', onClick);
   },
 };
 
-flatpickr('#datetime-picker', { ...options });
+flatpickr(text, options);
+
+function convertMs(ms) {
+  // Number of milliseconds per unit of time
+  const second = 1000;
+  const minute = second * 60;
+  const hour = minute * 60;
+  const day = hour * 24;
+
+  // Remaining days
+  const days = Math.floor(ms / day);
+  // Remaining hours
+  const hours = Math.floor((ms % day) / hour);
+  // Remaining minutes
+  const minutes = Math.floor(((ms % day) % hour) / minute);
+  // Remaining seconds
+  const seconds = Math.floor((((ms % day) % hour) % minute) / second);
+
+  return { days, hours, minutes, seconds };
+}
+
+const addLeadingZero = value => String(value).padStart(2, 0);
+
+startBtn.addEventListener('click', () => {
+  let timerId = setInterval(() => {
+    let countdown = new Date(text.value) - new Date();
+    startBtn.disabled = true;
+    if (countdown >= 0) {
+      let timeObject = convertMs(countdown);
+      refs.days.textContent = addLeadingZero(timeObject.days);
+      refs.hours.textContent = addLeadingZero(timeObject.hours);
+      refs.minutes.textContent = addLeadingZero(timeObject.minutes);
+      refs.seconds.textContent = addLeadingZero(timeObject.seconds);
+      if (countdown <= 10000) {
+        body.style.background = 'lightpink';
+      }
+    } else {
+      Notiflix.Notify.success('Countdown finished');
+      body.style.background = 'lightblue';
+      clearInterval(timerId);
+    }
+  }, 1000);
+});
